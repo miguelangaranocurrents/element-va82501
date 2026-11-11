@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import { type MatrixEvent, type Room, type RoomMember } from "matrix-js-sdk/src/matrix";
+import { type MatrixEvent, type Room, type RoomMember, User } from "matrix-js-sdk/src/matrix";
 
 import { type ButtonEvent } from "../components/views/elements/AccessibleButton";
 import { PillType } from "../components/views/elements/PillType";
@@ -142,15 +142,24 @@ export const usePermalink: (args: Args) => HookResult = ({
 
     if (type === PillType.AtRoomMention && permalinkRoom) {
         text = "@room";
-    } else if (type === PillType.UserMention && member) {
-        text = member.name || resourceId;
+    } else if (type === PillType.UserMention) {
+        if (member) text = member.name || resourceId;
+        // Always handle the click, even if the member profile has not loaded yet. Otherwise the event bubbles up to
+        // the timeline's link handler, which navigates away from the room instead of opening the user's profile.
         onClick = (e: ButtonEvent): void => {
             e.preventDefault();
             e.stopPropagation();
-            dis.dispatch({
-                action: Action.ViewUser,
-                member: member,
-            });
+            if (member) {
+                dis.dispatch({
+                    action: Action.ViewUser,
+                    member: member,
+                });
+            } else if (resourceId) {
+                dis.dispatch({
+                    action: Action.ViewUser,
+                    member: new User(resourceId),
+                });
+            }
         };
     } else if (type === PillType.RoomMention) {
         if (targetRoom) {
